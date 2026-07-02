@@ -45,7 +45,7 @@ flowchart LR
 
 ## Quick start
 
-**Requirements:** Python 3.10+ (tested on 3.13). Full pipeline runtime is ~45 seconds on a typical laptop.
+**Requirements:** Python 3.10+ (tested on 3.13). Full pipeline runtime is ~55-90 seconds on a typical laptop.
 
 ```bash
 git clone https://github.com/Rhines7/spam-classifier-naive-bayes.git
