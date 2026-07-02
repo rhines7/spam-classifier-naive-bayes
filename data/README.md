@@ -33,7 +33,7 @@ ln -s ../SpamAssassinMessages data/spamassassin
 
 ## Option 2: Download and extract
 
-1. Obtain the SpamAssassin public corpus (e.g. from your course materials or [SpamAssassin corpus sources](https://spamassassin.apache.org/old/publiccorpus/)).
+1. Obtain the SpamAssassin public corpus ([SpamAssassin corpus sources](https://spamassassin.apache.org/old/publiccorpus/)).
 2. Extract so the five category folders listed above live under `data/spamassassin/`.
 
 ## Verify

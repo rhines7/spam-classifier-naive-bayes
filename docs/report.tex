@@ -1,13 +1,9 @@
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
 
-% --- Figures / floats ---
-\usepackage{graphicx}     % graphicx: provides \includegraphics
-\usepackage{caption}      % caption: controls caption formatting
-\usepackage{subcaption}   % subcaption: sub-figures support
-\usepackage{placeins}     % placeins: provides \FloatBarrier to stop floats crossing barriers
-\usepackage{float}        % float: provides [H] specifier if you want to force exact placement
-
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{placeins}
 \usepackage{amsmath}
 \usepackage{hyperref}
 \usepackage{parskip}
@@ -16,21 +12,21 @@
 \graphicspath{{../figures/}}
 
 \title{Spam Email Classification Using Naive Bayes with Clustering-Enhanced Features}
-\author{Tom Hines\\Quantifying the World\\Southern Methodist University}
-\date{February 16, 2026}
+\author{Tom Hines}
+\date{February 2026}
 
 \begin{document}
 \maketitle
 
 \section{Introduction}
 
-This case study addresses email spam filtering using probabilistic classification: Naive Bayes with features built from TF-IDF vectorization and K-Means clustering. The SpamAssassin public corpus provides a realistic benchmark with an imbalanced class distribution (approximately 74\% ham and 26\% spam), which motivated the choice of Complement Naive Bayes. The pipeline uses only cross-validation for evaluation, with no train--test split, and all predictions are out-of-fold to avoid data leakage.
+This project addresses email spam filtering using probabilistic classification: Naive Bayes with features built from TF-IDF vectorization and K-Means clustering. The SpamAssassin public corpus~\cite{spamassassin} provides a realistic benchmark with an imbalanced class distribution (approximately 74\% ham and 26\% spam), which motivated the choice of Complement Naive Bayes~\cite{rennie2003}. The pipeline uses only cross-validation for evaluation, with no train--test split, and all predictions are out-of-fold to avoid data leakage.
 
 \section{Data and Preprocessing}
 
-The dataset is assembled from five SpamAssassin categories (easy\_ham, easy\_ham\_2, hard\_ham, spam, spam\_2), yielding 9,353 emails parsed with Latin-1 encoding. Figure~\ref{fig:data} summarizes class distribution and content types (MIME). The 74--26 ham-to-spam imbalance is typical of real-world mail streams and was preserved throughout. 
+The dataset is assembled from five SpamAssassin categories (easy\_ham, easy\_ham\_2, hard\_ham, spam, spam\_2), yielding 9,353 emails parsed with Latin-1 encoding. Figure~\ref{fig:data} summarizes class distribution and content types (MIME). The 74--26 ham-to-spam imbalance is typical of real-world mail streams and was preserved throughout.
 
-Preprocessing extracts body text (and optionally subject) from single-part and multipart messages, stripping HTML to plain text. Normalization includes lowercasing, removal of URLs and email addresses, stripping non-alphanumeric characters, and collapsing whitespace; no imputation was applied (one email yielded an empty string after cleaning and was removed). The pipeline then applies stopword removal, a minimum token length, and a simple suffix stemmer. Feature creation is described in the next section. The final count sat at 9,352 samples, and the data is treated as a Bag-of-Words model for encoding.
+Preprocessing extracts body text and the subject line from single-part and multipart messages, stripping HTML to plain text. Normalization includes lowercasing, removal of URLs and email addresses, stripping non-alphanumeric characters, and collapsing whitespace; no imputation was applied. One email yielded an empty string after cleaning and was removed, leaving 9,352 samples (6,954 ham, 2,398 spam). The pipeline then applies stopword removal, a minimum token length, and a simple suffix stemmer. Cleaned token sequences are encoded with TF-IDF vectorization in the next section (not raw term counts).
 
 \begin{figure}[!htbp]
 \centering
@@ -45,17 +41,26 @@ Preprocessing extracts body text (and optionally subject) from single-part and m
 
 Features are built with TF-IDF vectorization (3,000 terms, min/max document frequency 2 and 0.95, unigrams and bigrams). TF-IDF emphasizes terms that are distinctive per document, which suits spam detection where phrases like ``free,'' ``click,'' and ``offer'' are telling. The resulting sparse matrix is combined with cluster-based features.
 
-Clustering is used only as an unsupervised method (K-Means); no supervised use such as KNN was applied. The number of clusters was chosen by evaluating $k \in [2, 30]$ on a 3,000-point sample using inertia, silhouette score, and the Calinski--Harabasz index. Silhouette score was used as the primary criterion; it peaked at $k = 28$, which was selected to capture fine-grained thematic structure (e.g., different spam types and legitimate email genres). Mini-Batch K-Means was fit on the full BOW matrix; the assigned cluster for each email was one-hot encoded and these new features were concatenated with the original TF-IDF matrix to form a 3,028-dimensional feature set.
+Clustering is used only as an unsupervised method (K-Means); no supervised use such as KNN was applied. The number of clusters was chosen in two steps: $k \in [2, 30]$ was evaluated on a random 3,000-email sample using inertia, silhouette score, and the Calinski--Harabasz index. Silhouette score was the primary criterion; it peaked at $k = 30$ on the sample (score 0.0610; Figure~\ref{fig:cluster}). Mini-Batch K-Means with $k = 30$ was then fit on the full TF-IDF matrix; the assigned cluster for each email was one-hot encoded and concatenated with the original matrix to form a 3,030-dimensional feature set.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{02_cluster_evaluation.png}
+\caption{Cluster count selection on a 3,000-email sample: elbow (inertia), silhouette, and Calinski--Harabasz scores for $k = 2, \ldots, 30$. Silhouette score peaked at $k = 30$, which was used for the final model on the full dataset.}
+\label{fig:cluster}
+\end{figure}
+
+\FloatBarrier
 
 \section{Model and Validation}
 
 Complement Naive Bayes was chosen because it is designed for imbalanced text: it estimates parameters from the complement of each class, reducing bias toward the majority class. Laplace smoothing ($\alpha = 1.0$) was applied. Evaluation used stratified 10-fold cross-validation so that each fold preserves the 74--26 class ratio. Predictions and class probabilities were obtained via \texttt{cross\_val\_predict}, ensuring every sample is predicted only when held out.
 
-Fold accuracies ranged from 94.33\% to 97.11\% (mean 95.62\%, standard deviation 0.90\%), indicating stable generalization.
+Fold accuracies ranged from 95.08\% to 97.22\% (mean 96.08\%, standard deviation 0.64\%), indicating stable generalization.
 
 \section{Results}
 
-All 9,352 samples were predicted out of fold (no sample was predicted by a model trained on it). The out-of-fold confusion matrix (Figure~\ref{fig:confusion}) shows 6,674 true negatives, 280 false positives, 130 false negatives, and 2,269 true positives. Table~\ref{tab:classification} presents the classification report: precision, recall, F1-score, and support for each class. The final accuracy across all folds of the CV is 95.62\%.
+All 9,352 samples were predicted out of fold (no sample was predicted by a model trained on it), using the classifier's default 0.5 decision threshold on spam probability. The out-of-fold confusion matrix (Figure~\ref{fig:confusion}) shows 6,661 true negatives, 293 false positives, 74 false negatives, and 2,324 true positives. Table~\ref{tab:classification} presents the classification report: precision, recall, F1-score, and support for each class. The final accuracy across all folds of the CV is 96.08\%.
 
 \begin{table}[!htbp]
 \centering
@@ -65,15 +70,15 @@ All 9,352 samples were predicted out of fold (no sample was predicted by a model
 \hline
 Class & Precision & Recall & F1-score & Support \\
 \hline
-Ham (0)  & 0.9809 & 0.9597 & 0.9702 & 6954 \\
-Spam (1) & 0.8902 & 0.9458 & 0.9171 & 2399 \\
+Ham (0)  & 0.9890 & 0.9579 & 0.9732 & 6954 \\
+Spam (1) & 0.8880 & 0.9691 & 0.9268 & 2398 \\
 \hline
-Accuracy & \multicolumn{4}{c}{0.9562 (9352)} \\
+Accuracy & \multicolumn{4}{c}{0.9608 (9352)} \\
 \hline
 \end{tabular}
 \end{table}
 
-The 280 false positives (ham predicted as spam) often correspond to legitimate promotional or newsletter-style emails that use commercial language (e.g., ``offer,'' ``sale'') or multiple links, which the model associates with spam. The 130 false negatives (spam predicted as ham) tend to be messages that mimic legitimate tone and formatting or carry little text. Examining these misses suggests that improvement within the current setup could come from richer handling of context (e.g., subject vs.\ body) or threshold tuning to trade off false positives against false negatives; the model ``fails'' on those cases mainly where the lexical and cluster signals overlap with the other class.
+The 293 false positives (ham predicted as spam) often correspond to legitimate promotional or newsletter-style emails that use commercial language (e.g., ``offer,'' ``sale'') or multiple links, which the model associates with spam. The 74 false negatives (spam predicted as ham) tend to be messages that mimic legitimate tone and formatting or carry little text. Examining these misses suggests that improvement within the current setup could come from richer handling of context (e.g., subject vs.\ body) or threshold tuning to trade off false positives against false negatives; the model ``fails'' on those cases mainly where the lexical and cluster signals overlap with the other class.
 
 \begin{figure}[!htbp]
 \centering
@@ -84,7 +89,9 @@ The 280 false positives (ham predicted as spam) often correspond to legitimate p
 
 \FloatBarrier
 
-\paragraph{Decision threshold.} Adjusting the decision threshold alters the confusion matrix and metrics in predictable ways. Lowering the threshold (e.g., from 0.5 toward 0.3) increases the number of emails classified as spam, so recall for spam rises and false negatives fall, but false positives rise and precision for both classes typically falls. Raising the threshold reduces false positives and improves precision for ham at the cost of lower spam recall and more false negatives. Figure~\ref{fig:threshold} shows how accuracy, precision, and recall vary with threshold (and includes the ROC and precision--recall curves); the default 0.5 is near-optimal for overall accuracy and F1. ROC AUC is 0.9927, indicating strong separation of the two classes in probability space.
+\subsection*{Decision threshold}
+
+Adjusting the decision threshold alters the confusion matrix and metrics in predictable ways. Lowering the threshold (e.g., from 0.5 toward 0.3) increases the number of emails classified as spam, so recall for spam rises and false negatives fall, but false positives rise and precision for both classes typically falls. Raising the threshold reduces false positives and improves precision for ham at the cost of lower spam recall and more false negatives. Figure~\ref{fig:threshold} shows how accuracy, precision, and recall vary with threshold (and includes the ROC and precision--recall curves). On the out-of-fold probability scores, spam F1 peaks at a threshold of 0.70 (F1 = 0.9394, accuracy 96.88\%), compared with 0.9268 F1 and 96.08\% accuracy at the default 0.5 threshold used for Table~\ref{tab:classification} and Figure~\ref{fig:confusion}; the higher threshold trades a modest gain in precision for slightly lower spam recall. ROC AUC is 0.9938, indicating strong separation of the two classes in probability space.
 
 \begin{figure}[!htbp]
 \centering
@@ -97,10 +104,29 @@ The 280 false positives (ham predicted as spam) often correspond to legitimate p
 
 \section{Discussion and Limitations}
 
-The pipeline shows that Complement Naive Bayes with TF-IDF and cluster features achieves high accuracy and AUC. Algorithm choice mattered: Complement NB is better suited than standard Multinomial NB to the imbalanced setting. Clustering adds useful structure beyond raw vocabulary. The main limitations are the age and language of the corpus, the exclusion of metadata and non-text signals, and the static nature of the model (no continual adaptation to evolving spam).
+The pipeline shows that Complement Naive Bayes with TF-IDF and cluster features achieves high accuracy and AUC. Complement NB was chosen for imbalanced text classification based on prior work showing reduced majority-class bias~\cite{rennie2003}; a Multinomial NB baseline was not trained here, so no direct comparison is reported. Clustering adds useful structure beyond raw vocabulary. The main limitations are the age and language of the corpus, the exclusion of metadata and non-text signals, and the static nature of the model (no continual adaptation to evolving spam).
 
 \section{Conclusion}
 
-This case study implemented and evaluated a spam classifier using Complement Naive Bayes on TF-IDF and cluster-derived features, validated by stratified 10-fold cross-validation. The model reaches 95.62\% accuracy with balanced precision and recall across classes. The design choices (Complement NB for imbalance, silhouette-based cluster count, and cross-validation without a separate test set) are documented and justified. The work demonstrates that classical, interpretable methods can perform well on spam classification when preprocessing and feature engineering are applied carefully.
+This project implemented and evaluated a spam classifier using Complement Naive Bayes on TF-IDF and cluster-derived features, validated by stratified 10-fold cross-validation. The model reaches 96.08\% accuracy with high recall on both classes (95.79\% ham, 96.91\% spam) and strong ham precision (98.90\%), at the cost of lower spam precision (88.80\%)---a common trade-off when filtering imbalanced mail streams. The design choices (Complement NB for imbalance, silhouette-based cluster count, and cross-validation without a separate test set) are documented and justified. The work demonstrates that classical, interpretable methods can perform well on spam classification when preprocessing and feature engineering are applied carefully.
+
+\begin{thebibliography}{9}
+
+\bibitem{spamassassin}
+Apache SpamAssassin Project.
+\newblock Public corpus.
+\newblock \url{https://spamassassin.apache.org/old/publiccorpus/}.
+
+\bibitem{rennie2003}
+J.~D.~M. Rennie, L.~Shih, J.~D.~Teevan, and D.~Karger.
+\newblock Tackling the poor assumptions of naive bayes text classifiers.
+\newblock In \emph{Proceedings of ICML}, pages 616--623, 2003.
+
+\bibitem{sklearn}
+F.~Pedregosa et al.
+\newblock Scikit-learn: Machine learning in Python.
+\newblock \emph{Journal of Machine Learning Research}, 12:2825--2830, 2011.
+
+\end{thebibliography}
 
 \end{document}

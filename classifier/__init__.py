@@ -1,9 +1,4 @@
-"""
-Spam email classification using Complement Naive Bayes with clustering-enhanced TF-IDF features.
-
-Entry point: python spam_classifier.py
-Implementation: classifier/ package (io, preprocess, features, model, viz, pipeline).
-"""
+"""Spam classifier package: load, preprocess, feature engineering, model, and visualization."""
 
 from classifier.config import DATA_DIR, FIGURES_DIR, PROJECT_ROOT
 from classifier.features import (
@@ -60,6 +55,3 @@ __all__ = [
     "create_additional_visualizations",
     "main",
 ]
-
-if __name__ == "__main__":
-    main()
