@@ -1,0 +1,22 @@
+# Raw email corpus (obtain separately; see data/README.md)
+data/spamassassin/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# LaTeX build artifacts
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.synctex.gz
+
+# OS
+.DS_Store
+Thumbs.db
